@@ -302,8 +302,13 @@ class DDPM(pl.LightningModule):
 
     def p_losses(self, x_start, t, noise=None):
         noise = default(noise, lambda: torch.randn_like(x_start))
+        print("p_losses")
+        print("t shape:", t.shape)
+        print("noise shape:", noise.shape)
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+        print("x_noisy shape:", x_noisy.shape)
         model_out = self.model(x_noisy, t)
+        print("model_out shape:", model_out.shape)
 
         loss_dict = {}
         if self.parameterization == "eps":
@@ -345,6 +350,7 @@ class DDPM(pl.LightningModule):
 
     def shared_step(self, batch):
         x = self.get_input(batch, self.first_stage_key)
+        print("shared_step shape:", x.shape)
         loss, loss_dict = self(x)
         return loss, loss_dict
 
@@ -405,7 +411,6 @@ class DDPM(pl.LightningModule):
                 diffusion_row.append(x_noisy)
 
         log["diffusion_row"] = self._get_rows_from_list(diffusion_row)
-
         if sample:
             # get denoise row
             with self.ema_scope("Plotting"):
@@ -513,8 +518,10 @@ class LatentDiffusion(DDPM):
             # set rescale weight to 1./std of encodings
             print("### USING STD-RESCALING ###")
             x = super().get_input(batch, self.first_stage_key)
+            print("X shape:", x.shape)
             x = x.to(self.device)
             encoder_posterior = self.encode_first_stage(x)
+            print("encoder_posterior shape:", encoder_posterior.shape)
             z = self.get_first_stage_encoding(encoder_posterior).detach()
             del self.scale_factor
             self.register_buffer('scale_factor', 1. / z.flatten().std())
@@ -587,6 +594,7 @@ class LatentDiffusion(DDPM):
             z = encoder_posterior
         else:
             raise NotImplementedError(f"encoder_posterior of type '{type(encoder_posterior)}' not yet implemented")
+        print("get_first_stage_encoding shape:", z.shape)
         return self.scale_factor * z
 
     def get_learned_conditioning(self, c):
@@ -700,6 +708,7 @@ class LatentDiffusion(DDPM):
         x = x.to(self.device)
         encoder_posterior = self.encode_first_stage(x)
         z = self.get_first_stage_encoding(encoder_posterior).detach()
+        # print("batch:", batch)
 
         if self.model.conditioning_key is not None:
             if cond_key is None:
@@ -714,20 +723,38 @@ class LatentDiffusion(DDPM):
             else:
                 xc = x
             if not self.cond_stage_trainable or force_c_encode:
+                print("not learnable")
+                print("xc:", xc)
                 if isinstance(xc, dict) or isinstance(xc, list):
                     # import pudb; pudb.set_trace()
                     c = self.get_learned_conditioning(xc)
                 else:
                     c = self.get_learned_conditioning(xc.to(self.device))
             else:
+                print("learnable")
                 c = xc
+            print("c before:", c)
+            concat =  [encoder_posterior.mode().detach()]
             if bs is not None:
+                print("c1:", c)
+                print("c1 shape:", c.shape)
                 c = c[:bs]
+                print("c2:", c)
+                print("c2 shape:", c.shape)
+                concat = concat[0]
+                print("concat:", concat)
+
+
+            ckey = __conditioning_keys__['crossattn']
+            c = {ckey: c}
+            ckey = __conditioning_keys__['concat']
+            c.update({ckey: concat})
 
             if self.use_positional_encodings:
+                print("use_positional_encodings")
                 pos_x, pos_y = self.compute_latent_shifts(batch)
-                ckey = __conditioning_keys__[self.model.conditioning_key]
-                c = {ckey: c, 'pos_x': pos_x, 'pos_y': pos_y}
+                # ckey = __conditioning_keys__[self.model.conditioning_key]
+                c.update({'pos_x': pos_x, 'pos_y': pos_y})
 
         else:
             c = None
@@ -735,6 +762,8 @@ class LatentDiffusion(DDPM):
             if self.use_positional_encodings:
                 pos_x, pos_y = self.compute_latent_shifts(batch)
                 c = {'pos_x': pos_x, 'pos_y': pos_y}
+
+        print("c after:", c)
         out = [z, c]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
@@ -934,7 +963,11 @@ class LatentDiffusion(DDPM):
         if self.model.conditioning_key is not None:
             assert c is not None
             if self.cond_stage_trainable:
-                c = self.get_learned_conditioning(c)
+                if isinstance(c, dict):
+                    c['c_crossattn'] = self.get_learned_conditioning(c['c_crossattn'])
+                else:
+                    c = self.get_learned_conditioning(c)
+                print("c cond_stage_trainable:", c)
             if self.shorten_cond_schedule:  # TODO: drop this option
                 tc = self.cond_ids[t].to(self.device)
                 c = self.q_sample(x_start=c, t=tc, noise=torch.randn_like(c.float()))
@@ -955,7 +988,9 @@ class LatentDiffusion(DDPM):
 
         if isinstance(cond, dict):
             # hybrid case, cond is exptected to be a dict
-            pass
+            for key, val in cond.items():
+                if not isinstance(val, list):
+                    cond[key] = [val]
         else:
             if not isinstance(cond, list):
                 cond = [cond]
@@ -988,6 +1023,7 @@ class LatentDiffusion(DDPM):
                 c = c.view((c.shape[0], -1, ks[0], ks[1], c.shape[-1]))  # (bn, nc, ks[0], ks[1], L )
 
                 cond_list = [{c_key: [c[:, :, :, :, i]]} for i in range(c.shape[-1])]
+
 
             elif self.cond_stage_key == 'coordinates_bbox':
                 assert 'original_image_size' in self.split_input_params, 'BoudingBoxRescaling is missing original_image_size'
@@ -1308,6 +1344,7 @@ class LatentDiffusion(DDPM):
         if ddim:
             ddim_sampler = DDIMSampler(self)
             shape = (self.channels, self.image_size, self.image_size)
+            print("sample_log cond:", cond)
             samples, intermediates =ddim_sampler.sample(ddim_steps,batch_size,
                                                         shape,cond,verbose=False,**kwargs)
 
@@ -1321,16 +1358,22 @@ class LatentDiffusion(DDPM):
     def log_images(self, batch, N=8, n_row=4, sample=True, ddim_steps=200, ddim_eta=1., return_keys=None,
                    quantize_denoised=True, inpaint=False, plot_denoise_rows=False, plot_progressive_rows=False,
                    plot_diffusion_rows=False, **kwargs):
-
+        import copy
         use_ddim = ddim_steps is not None
+        use_ddim = None
 
         log = dict()
         batch = batch[0]
+        print("*"*4 + "log_images" + "*"*4)
+        print("batch[0]:", batch)
         z, c, x, xrec, xc = self.get_input(batch, self.first_stage_key,
                                            return_first_stage_outputs=True,
                                            force_c_encode=True,
                                            return_original_cond=True,
                                            bs=N)
+        print("log_images c 1:", c)
+        print("log_images x:", x)
+        print("log_images xc:", xc)
         N = min(x.shape[0], N)
         n_row = min(x.shape[0], n_row)
         log["inputs"] = x
@@ -1369,9 +1412,11 @@ class LatentDiffusion(DDPM):
             log["diffusion_row"] = diffusion_grid
 
         if sample:
+            print("sampling c:", c)
             # get denoise row
             with self.ema_scope("Plotting"):
-                samples, z_denoise_row = self.sample_log(cond=c,batch_size=N,ddim=use_ddim,
+                print("sample_log step 1")
+                samples, z_denoise_row = self.sample_log(cond=copy.deepcopy(c),batch_size=N,ddim=use_ddim,
                                                          ddim_steps=ddim_steps,eta=ddim_eta)
                 # samples, z_denoise_row = self.sample(cond=c, batch_size=N, return_intermediates=True)
             x_samples = self.decode_first_stage(samples)
@@ -1379,17 +1424,25 @@ class LatentDiffusion(DDPM):
             if plot_denoise_rows:
                 denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
                 log["denoise_row"] = denoise_grid
-            
-            uc = self.get_learned_conditioning(len(c) * [""])
-            sample_scaled, _ = self.sample_log(cond=c, 
+            print("c shape:", c[__conditioning_keys__['crossattn']].shape)
+            print("len(c)", len(c[__conditioning_keys__['crossattn']]))
+            print(len(c[__conditioning_keys__['crossattn']]) * [""])
+            # uc = self.get_learned_conditioning(len(c) * [""])
+            print("c[__conditioning_keys__['crossattn']]:", c[__conditioning_keys__['crossattn']])
+            print("X [""]", len(c[__conditioning_keys__['crossattn']]) * [""])
+            uc = self.get_learned_conditioning(len(c[__conditioning_keys__['crossattn']]) * [""])
+            print("uc:", uc)
+            print("sample_log step 2")
+            sample_scaled, _ = self.sample_log(cond=copy.deepcopy(c),
                                                batch_size=N, 
                                                ddim=use_ddim, 
                                                ddim_steps=ddim_steps,
                                                eta=ddim_eta,                                                 
                                                unconditional_guidance_scale=5.0,
                                                unconditional_conditioning=uc)
-            log["samples_scaled"] = self.decode_first_stage(sample_scaled)
 
+            log["samples_scaled"] = self.decode_first_stage(sample_scaled)
+            print("&&&&&&")
             if quantize_denoised and not isinstance(self.first_stage_model, AutoencoderKL) and not isinstance(
                     self.first_stage_model, IdentityFirstStage):
                 # also display when quantizing x0 while sampling
@@ -1401,6 +1454,8 @@ class LatentDiffusion(DDPM):
                     #                                      quantize_denoised=True)
                 x_samples = self.decode_first_stage(samples.to(self.device))
                 log["samples_x0_quantized"] = x_samples
+
+            print("######")
 
             if inpaint:
                 # make a simple center square
@@ -1437,6 +1492,7 @@ class LatentDiffusion(DDPM):
                 return log
             else:
                 return {key: log[key] for key in return_keys}
+        print("returned")
         return log
 
     def configure_optimizers(self):

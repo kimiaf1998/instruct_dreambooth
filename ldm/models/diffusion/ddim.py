@@ -78,6 +78,8 @@ class DDIMSampler(object):
                # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
                **kwargs
                ):
+
+        print("sample conditioning", conditioning)
         if conditioning is not None:
             if isinstance(conditioning, dict):
                 cbs = conditioning[list(conditioning.keys())[0]].shape[0]
@@ -146,6 +148,7 @@ class DDIMSampler(object):
                 img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
                 img = img_orig * mask + (1. - mask) * img
 
+            # print("cond:", cond)
             outs = self.p_sample_ddim(img, cond, ts, index=index, use_original_steps=ddim_use_original_steps,
                                       quantize_denoised=quantize_denoised, temperature=temperature,
                                       noise_dropout=noise_dropout, score_corrector=score_corrector,
