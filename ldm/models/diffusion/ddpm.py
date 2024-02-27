@@ -708,7 +708,6 @@ class LatentDiffusion(DDPM):
         x = x.to(self.device)
         encoder_posterior = self.encode_first_stage(x)
         z = self.get_first_stage_encoding(encoder_posterior).detach()
-        # print("batch:", batch)
 
         if self.model.conditioning_key is not None:
             if cond_key is None:
@@ -1359,9 +1358,10 @@ class LatentDiffusion(DDPM):
                    quantize_denoised=True, inpaint=False, plot_denoise_rows=False, plot_progressive_rows=False,
                    plot_diffusion_rows=False, **kwargs):
         import copy
-        use_ddim = ddim_steps is not None
+        # use_ddim = ddim_steps is not None
         use_ddim = None
 
+        print("batch:", batch)
         log = dict()
         batch = batch[0]
         print("*"*4 + "log_images" + "*"*4)
@@ -1416,7 +1416,7 @@ class LatentDiffusion(DDPM):
             # get denoise row
             with self.ema_scope("Plotting"):
                 print("sample_log step 1")
-                samples, z_denoise_row = self.sample_log(cond=copy.deepcopy(c),batch_size=N,ddim=use_ddim,
+                samples, z_denoise_row = self.sample_log(cond=c,batch_size=N,ddim=use_ddim,
                                                          ddim_steps=ddim_steps,eta=ddim_eta)
                 # samples, z_denoise_row = self.sample(cond=c, batch_size=N, return_intermediates=True)
             x_samples = self.decode_first_stage(samples)
@@ -1424,16 +1424,11 @@ class LatentDiffusion(DDPM):
             if plot_denoise_rows:
                 denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
                 log["denoise_row"] = denoise_grid
-            print("c shape:", c[__conditioning_keys__['crossattn']].shape)
-            print("len(c)", len(c[__conditioning_keys__['crossattn']]))
-            print(len(c[__conditioning_keys__['crossattn']]) * [""])
-            # uc = self.get_learned_conditioning(len(c) * [""])
-            print("c[__conditioning_keys__['crossattn']]:", c[__conditioning_keys__['crossattn']])
-            print("X [""]", len(c[__conditioning_keys__['crossattn']]) * [""])
-            uc = self.get_learned_conditioning(len(c[__conditioning_keys__['crossattn']]) * [""])
+            uc = self.get_learned_conditioning(len(c) * [""])
+            # uc = self.get_learned_conditioning(len(c[__conditioning_keys__['crossattn']]) * [""])
             print("uc:", uc)
             print("sample_log step 2")
-            sample_scaled, _ = self.sample_log(cond=copy.deepcopy(c),
+            sample_scaled, _ = self.sample_log(cond=c,
                                                batch_size=N, 
                                                ddim=use_ddim, 
                                                ddim_steps=ddim_steps,
@@ -1442,7 +1437,6 @@ class LatentDiffusion(DDPM):
                                                unconditional_conditioning=uc)
 
             log["samples_scaled"] = self.decode_first_stage(sample_scaled)
-            print("&&&&&&")
             if quantize_denoised and not isinstance(self.first_stage_model, AutoencoderKL) and not isinstance(
                     self.first_stage_model, IdentityFirstStage):
                 # also display when quantizing x0 while sampling
@@ -1455,7 +1449,6 @@ class LatentDiffusion(DDPM):
                 x_samples = self.decode_first_stage(samples.to(self.device))
                 log["samples_x0_quantized"] = x_samples
 
-            print("######")
 
             if inpaint:
                 # make a simple center square
@@ -1492,7 +1485,6 @@ class LatentDiffusion(DDPM):
                 return log
             else:
                 return {key: log[key] for key in return_keys}
-        print("returned")
         return log
 
     def configure_optimizers(self):
@@ -1591,6 +1583,8 @@ class DiffusionWrapper(pl.LightningModule):
             cc = torch.cat(c_crossattn, 1)
             out = self.diffusion_model(x, t, context=cc)
         elif self.conditioning_key == 'hybrid':
+            if c_concat is None:
+                c_concat = [x]
             xc = torch.cat([x] + c_concat, dim=1)
             cc = torch.cat(c_crossattn, 1)
             out = self.diffusion_model(xc, t, context=cc)
