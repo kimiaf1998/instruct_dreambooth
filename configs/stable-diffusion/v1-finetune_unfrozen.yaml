@@ -80,26 +80,26 @@ data:
     num_workers: 96
     wrap: false
     train:
-      target: ldm.data.personalized.PersonalizedBase
+      target: ldm.data.personalized_edit.PersonalizedBase
       params:
         size: 256
-        set: train
+        data_set: train
         per_image_tokens: false
         repeats: 100
     reg:
-      target: ldm.data.personalized.PersonalizedBase
+      target: ldm.data.personalized_edit.PersonalizedBase
       params:
         size: 256
-        set: train
+        data_set: train
         reg: true
         per_image_tokens: false
         repeats: 10
 
     validation:
-      target: ldm.data.personalized.PersonalizedBase
+      target: ldm.data.personalized_edit.PersonalizedBase
       params:
         size: 256
-        set: val
+        data_set: val
         per_image_tokens: false
         repeats: 10
 
@@ -205,14 +205,14 @@ lightning:
 #      target: ldm.data.personalized.PersonalizedBase
 #      params:
 #        size: 256
-#        set: train
+#        data_set: train
 #        per_image_tokens: false
 #        repeats: 100
 #    reg:
 #      target: ldm.data.personalized.PersonalizedBase
 #      params:
 #        size: 256
-#        set: train
+#        data_set: train
 #        reg: true
 #        per_image_tokens: false
 #        repeats: 10
@@ -221,7 +221,7 @@ lightning:
 #      target: ldm.data.personalized.PersonalizedBase
 #      params:
 #        size: 256
-#        set: val
+#        data_set: val
 #        per_image_tokens: false
 #        repeats: 10
 #

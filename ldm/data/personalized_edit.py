@@ -8,11 +8,11 @@ from torchvision import transforms
 import random
 
 training_templates_smallest = [
-    'photo of a sks {}',
+    'replace the horse with a sks {}',
 ]
 
 reg_templates_smallest = [
-    'photo of a {}',
+    'replace the horse with a {}',
 ]
 
 imagenet_templates_small = [
@@ -140,7 +140,7 @@ class PersonalizedBase(Dataset):
                  repeats=100,
                  interpolation="bicubic",
                  flip_p=0.5,
-                 set="train",
+                 data_set="train",
                  placeholder_token="dog",
                  per_image_tokens=False,
                  center_crop=False,
@@ -151,11 +151,20 @@ class PersonalizedBase(Dataset):
 
         self.data_root = data_root
 
-        self.image_paths = [os.path.join(self.data_root, file_path) for file_path in os.listdir(self.data_root)]
+        self.image_paths = set()
+        for file_path in sorted(os.listdir(self.data_root)):
+            root, ext = os.path.splitext(file_path)
+            root = root.split('_')[0]
+            root += "_{}" + ext
+            self.image_paths.add(os.path.join(self.data_root, root))
+        self.image_paths = list(self.image_paths)
+        print(self.image_paths)
+
 
         # self._length = len(self.image_paths)
         self.num_images = len(self.image_paths)
-        self._length = self.num_images 
+        self._length = self.num_images
+        print("len dataset:", self._length)
 
         self.placeholder_token = placeholder_token
 
@@ -166,9 +175,9 @@ class PersonalizedBase(Dataset):
         self.coarse_class_text = coarse_class_text
 
         if per_image_tokens:
-            assert self.num_images < len(per_img_token_list), f"Can't use per-image tokens when the training set contains more than {len(per_img_token_list)} tokens. To enable larger sets, add more tokens to 'per_img_token_list'."
+            assert self.num_images < len(per_img_token_list), f"Can't use per-image tokens when the training data_set contains more than {len(per_img_token_list)} tokens. To enable larger sets, add more tokens to 'per_img_token_list'."
 
-        if set == "train":
+        if data_set == "train":
             self._length = self.num_images * repeats
 
         self.size = size
@@ -185,10 +194,14 @@ class PersonalizedBase(Dataset):
 
     def __getitem__(self, i):
         example = {}
-        image = Image.open(self.image_paths[i % self.num_images])
+        edited = Image.open(self.image_paths[i % self.num_images].format("0"))
+        original = Image.open(self.image_paths[i % self.num_images].format("1"))
+        print("original:", self.image_paths[i % self.num_images].format("0"))
+        print("edited:", self.image_paths[i % self.num_images].format("0"))
 
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
+        if not original.mode == "RGB":
+            original = original.convert("RGB")
+            edited = edited.convert("RGB")
 
         placeholder_string = self.placeholder_token
         if self.coarse_class_text:
@@ -202,7 +215,7 @@ class PersonalizedBase(Dataset):
         example["caption"] = text
 
         # default to score-sde preprocessing
-        img = np.array(image).astype(np.uint8)
+        img = np.array(original).astype(np.uint8)
         
         if self.center_crop:
             crop = min(img.shape[0], img.shape[1])
@@ -210,11 +223,28 @@ class PersonalizedBase(Dataset):
             img = img[(h - crop) // 2:(h + crop) // 2,
                 (w - crop) // 2:(w + crop) // 2]
 
-        image = Image.fromarray(img)
-        if self.size is not None:
-            image = image.resize((self.size, self.size), resample=self.interpolation)
+        original = Image.fromarray(img)
 
-        image = self.flip(image)
-        image = np.array(image).astype(np.uint8)
-        example["image"] = (image / 127.5 - 1.0).astype(np.float32)
+        img = np.array(edited).astype(np.uint8)
+
+        if self.center_crop:
+            crop = min(img.shape[0], img.shape[1])
+            h, w, = img.shape[0], img.shape[1]
+            img = img[(h - crop) // 2:(h + crop) // 2,
+                  (w - crop) // 2:(w + crop) // 2]
+
+        edited = Image.fromarray(img)
+        
+        if self.size is not None:
+            original = original.resize((self.size, self.size), resample=self.interpolation)
+            edited = edited.resize((self.size, self.size), resample=self.interpolation)
+
+        original = self.flip(original)
+        original = np.array(original).astype(np.uint8)
+
+        edited = self.flip(edited)
+        edited = np.array(edited).astype(np.uint8)
+
+        example["image"] = (edited / 127.5 - 1.0).astype(np.float32)
+        example["c_concat"] = (original / 127.5 - 1.0).astype(np.float32)
         return example

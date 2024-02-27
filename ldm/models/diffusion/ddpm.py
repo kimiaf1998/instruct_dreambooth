@@ -733,14 +733,15 @@ class LatentDiffusion(DDPM):
                 print("learnable")
                 c = xc
             print("c before:", c)
-            concat =  [encoder_posterior.mode().detach()]
+            # concat =  [encoder_posterior.mode().detach()]
+            concat = batch[__conditioning_keys__['concat']]
             if bs is not None:
                 print("c1:", c)
                 print("c1 shape:", c.shape)
                 c = c[:bs]
                 print("c2:", c)
                 print("c2 shape:", c.shape)
-                concat = concat[0]
+                concat = concat[:bs]
                 print("concat:", concat)
 
 
