@@ -153,7 +153,7 @@ class DDIMSampler(object):
                                       quantize_denoised=quantize_denoised, temperature=temperature,
                                       noise_dropout=noise_dropout, score_corrector=score_corrector,
                                       corrector_kwargs=corrector_kwargs,
-                                      unconditional_guidance_scale=unconditional_guidance_scale,
+                                      text_cfg_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
             img, pred_x0 = outs
             if callback: callback(i)
@@ -171,14 +171,14 @@ class DDIMSampler(object):
                       image_cfg_scale=1.5, text_cfg_scale=7.5, unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
 
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
+        if unconditional_conditioning is None or text_cfg_scale == 1.:
             e_t = self.model.apply_model(x, t, c)
         else:
             x_in = torch.cat([x] * 3)
             t_in = torch.cat([t] * 3)
             if isinstance(c, dict):
                 c_in = torch.cat([unconditional_conditioning, unconditional_conditioning, c["c_crossattn"]])
-                concat = torch.cat(torch.zeros_like(c["c_concat"][0], c["c_concat"][0], c["c_concat"][0]))
+                concat = torch.cat([torch.zeros_like(c["c_concat"][0]), c["c_concat"][0], c["c_concat"][0]])
                 c_in = {"c_crossattn": c_in, "c_concat": [concat]}
             else:
                 # TODO adjust based on your needs
