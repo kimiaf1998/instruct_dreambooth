@@ -247,12 +247,7 @@ def main():
 
     '''Kimia's testing'''
     from PIL import Image, ImageOps
-    input_image = Image.open("outputs/txt2img-samples/a photo of a dog_4.png").convert("RGB")
-    # width, height = input_image.size
-    # factor = args.resolution / max(width, height)
-    # factor = math.ceil(min(width, height) * factor / 64) * 64 / min(width, height)
-    # width = int((width * factor) // 64) * 64
-    # height = int((height * factor) // 64) * 64
+    input_image = Image.open("test_samples/a_horse.jpg").convert("RGB")
     input_image = ImageOps.fit(input_image, (opt.H, opt.W), method=Image.LANCZOS)
 
     ''' end testing'''
@@ -277,7 +272,7 @@ def main():
                         input_image = 2 * torch.tensor(np.array(input_image)).float() / 255 - 1
                         input_image = rearrange(input_image, "h w c -> 1 c h w").to(model.device)
                         cond["c_concat"] = [model.encode_first_stage(input_image).mode()]
-                        cond["c_concat"] = [torch.cat(cond["c_concat"] * opt.n_samples * 2)]
+                        cond["c_concat"] = [torch.cat(cond["c_concat"] * opt.n_samples)]
 
                         '''end testing'''
                         shape = [opt.C, opt.H // opt.f, opt.W // opt.f]
