@@ -168,7 +168,7 @@ class DDIMSampler(object):
     @torch.no_grad()
     def p_sample_ddim(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None):
+                      image_cfg_scale=1.5, text_cfg_scale=7.5, unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
@@ -177,12 +177,15 @@ class DDIMSampler(object):
             x_in = torch.cat([x] * 2)
             t_in = torch.cat([t] * 2)
             if isinstance(c, dict):
-                c_in = torch.cat([unconditional_conditioning, c["c_crossattn"]])
-                c_in = {"c_crossattn": c_in, "c_concat": c["c_concat"]}
+                c_in = torch.cat([unconditional_conditioning, unconditional_conditioning, c["c_crossattn"]])
+                concat = torch.cat(torch.zeros_like(c["c_concat"][0], c["c_concat"][0], c["c_concat"][0]))
+                c_in = {"c_crossattn": c_in, "c_concat": [concat]}
             else:
+                # TODO adjust based on your needs
                 c_in = torch.cat([unconditional_conditioning, c])
-            e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
-            e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
+            # classifier-free guidance adopted from Instruct-Pix2Pix
+            e_t_uncond, e_t_img, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(3)
+            e_t = e_t_uncond + text_cfg_scale * (e_t - e_t_img) + image_cfg_scale * (e_t_img - e_t_uncond)
 
         if score_corrector is not None:
             assert self.model.parameterization == "eps"
