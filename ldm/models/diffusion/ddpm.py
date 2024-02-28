@@ -722,27 +722,19 @@ class LatentDiffusion(DDPM):
             else:
                 xc = x
             if not self.cond_stage_trainable or force_c_encode:
-                print("not learnable")
-                print("xc:", xc)
                 if isinstance(xc, dict) or isinstance(xc, list):
                     # import pudb; pudb.set_trace()
                     c = self.get_learned_conditioning(xc)
                 else:
                     c = self.get_learned_conditioning(xc.to(self.device))
             else:
-                print("learnable")
                 c = xc
-            print("c before:", c)
             # concat =  [encoder_posterior.mode().detach()]
-            concat = batch[__conditioning_keys__['concat']]
+            xc = super().get_input(batch, __conditioning_keys__['concat'])
             if bs is not None:
-                print("c1:", c)
-                print("c1 shape:", c.shape)
                 c = c[:bs]
-                print("c2:", c)
-                print("c2 shape:", c.shape)
-                concat = concat[:bs]
-                print("concat:", concat)
+                xc = xc[:bs]
+            concat = [self.encode_first_stage((xc.to(self.device))).mode().detach()]
 
 
             ckey = __conditioning_keys__['crossattn']
@@ -753,7 +745,6 @@ class LatentDiffusion(DDPM):
             if self.use_positional_encodings:
                 print("use_positional_encodings")
                 pos_x, pos_y = self.compute_latent_shifts(batch)
-                # ckey = __conditioning_keys__[self.model.conditioning_key]
                 c.update({'pos_x': pos_x, 'pos_y': pos_y})
 
         else:
@@ -763,7 +754,6 @@ class LatentDiffusion(DDPM):
                 pos_x, pos_y = self.compute_latent_shifts(batch)
                 c = {'pos_x': pos_x, 'pos_y': pos_y}
 
-        print("c after:", c)
         out = [z, c]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
@@ -1584,8 +1574,6 @@ class DiffusionWrapper(pl.LightningModule):
             cc = torch.cat(c_crossattn, 1)
             out = self.diffusion_model(x, t, context=cc)
         elif self.conditioning_key == 'hybrid':
-            if c_concat is None:
-                c_concat = [x]
             xc = torch.cat([x] + c_concat, dim=1)
             cc = torch.cat(c_crossattn, 1)
             out = self.diffusion_model(xc, t, context=cc)
