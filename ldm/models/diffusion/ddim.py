@@ -174,8 +174,8 @@ class DDIMSampler(object):
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
             e_t = self.model.apply_model(x, t, c)
         else:
-            x_in = torch.cat([x] * 2)
-            t_in = torch.cat([t] * 2)
+            x_in = torch.cat([x] * 3)
+            t_in = torch.cat([t] * 3)
             if isinstance(c, dict):
                 c_in = torch.cat([unconditional_conditioning, unconditional_conditioning, c["c_crossattn"]])
                 concat = torch.cat(torch.zeros_like(c["c_concat"][0], c["c_concat"][0], c["c_concat"][0]))

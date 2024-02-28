@@ -196,8 +196,6 @@ class PersonalizedBase(Dataset):
         example = {}
         edited = Image.open(self.image_paths[i % self.num_images].format("0"))
         original = Image.open(self.image_paths[i % self.num_images].format("1"))
-        print("original:", self.image_paths[i % self.num_images].format("0"))
-        print("edited:", self.image_paths[i % self.num_images].format("0"))
 
         if not original.mode == "RGB":
             original = original.convert("RGB")
