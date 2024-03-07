@@ -8,11 +8,11 @@ from torchvision import transforms
 import random
 
 training_templates_smallest = [
-    'replace the horse with a sks {}',
+    'replace the dog with a sks {}',
 ]
 
 reg_templates_smallest = [
-    'replace the horse with a {}',
+    'replace the dog with a {}',
 ]
 
 imagenet_templates_small = [
@@ -194,8 +194,10 @@ class PersonalizedBase(Dataset):
 
     def __getitem__(self, i):
         example = {}
-        edited = Image.open(self.image_paths[i % self.num_images].format("0"))
-        original = Image.open(self.image_paths[i % self.num_images].format("1"))
+        # print(f'edited image paths: {self.image_paths[i % self.num_images].format("0")}')
+        # print(f'original image paths: {self.image_paths[i % self.num_images].format("1")}')
+        edited = Image.open(self.image_paths[i % self.num_images].format("1"))
+        original = Image.open(self.image_paths[i % self.num_images].format("0"))
 
         if not original.mode == "RGB":
             original = original.convert("RGB")

@@ -350,7 +350,6 @@ class DDPM(pl.LightningModule):
 
     def shared_step(self, batch):
         x = self.get_input(batch, self.first_stage_key)
-        print("shared_step shape:", x.shape)
         loss, loss_dict = self(x)
         return loss, loss_dict
 
@@ -594,7 +593,7 @@ class LatentDiffusion(DDPM):
             z = encoder_posterior
         else:
             raise NotImplementedError(f"encoder_posterior of type '{type(encoder_posterior)}' not yet implemented")
-        print("get_first_stage_encoding shape:", z.shape)
+        # print("get_first_stage_encoding shape:", z.shape)
         return self.scale_factor * z
 
     def get_learned_conditioning(self, c):
@@ -933,7 +932,7 @@ class LatentDiffusion(DDPM):
         
         loss_train, loss_dict = self.shared_step(train_batch)
         loss_reg, _ = self.shared_step(reg_batch)
-        
+
         loss = loss_train + self.reg_weight * loss_reg
 
         self.log_dict(loss_dict, prog_bar=True,
@@ -957,7 +956,7 @@ class LatentDiffusion(DDPM):
                     c['c_crossattn'] = self.get_learned_conditioning(c['c_crossattn'])
                 else:
                     c = self.get_learned_conditioning(c)
-                print("c cond_stage_trainable:", c)
+                # print("c cond_stage_trainable:", c)
             if self.shorten_cond_schedule:  # TODO: drop this option
                 tc = self.cond_ids[t].to(self.device)
                 c = self.q_sample(x_start=c, t=tc, noise=torch.randn_like(c.float()))
@@ -1114,9 +1113,10 @@ class LatentDiffusion(DDPM):
             raise NotImplementedError()
 
         loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
+        # print(f'loss_simple.device: {loss_simple.device}')
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
 
-        logvar_t = self.logvar[t].to(self.device)
+        logvar_t = self.logvar[t.to('cpu')].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
         # loss = loss_simple / torch.exp(self.logvar) + self.logvar
         if self.learn_logvar:
@@ -1349,8 +1349,8 @@ class LatentDiffusion(DDPM):
                    quantize_denoised=True, inpaint=False, plot_denoise_rows=False, plot_progressive_rows=False,
                    plot_diffusion_rows=False, **kwargs):
         import copy
-        # use_ddim = ddim_steps is not None
-        use_ddim = None
+        use_ddim = ddim_steps is not None
+        # use_ddim = None
 
         print("batch:", batch)
         log = dict()

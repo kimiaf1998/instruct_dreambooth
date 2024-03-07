@@ -782,8 +782,8 @@ if __name__ == "__main__":
         data.prepare_data()
         data.setup()
         print("#### Data #####")
-        for k in data.datasets:
-            print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
+        # for k in data.datasets:
+        #     print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
 
         # configure learning rate
         bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate
