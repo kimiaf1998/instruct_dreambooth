@@ -621,6 +621,7 @@ if __name__ == "__main__":
             gpuinfo = trainer_config["gpus"]
             print(f"Running on GPUs {gpuinfo}")
             cpu = False
+        # trainer_config['fast_dev_run'] = True
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
@@ -784,6 +785,7 @@ if __name__ == "__main__":
         print("#### Data #####")
         # for k in data.datasets:
         #     print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
+        # assert False
 
         # configure learning rate
         bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate

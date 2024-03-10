@@ -1,8 +1,11 @@
-root="logs/training2024-03-06T19-20-44_cat2_to_dog"
-CUDA_VISIBLE_DEVICES=1 python scripts/edit_cli.py --cfg-text 6.305 --cfg-image 4.15 --steps 50 \
+root="logs/training2024-03-09T19-00-54_wolf_to_dog"
+CUDA_VISIBLE_DEVICES=1 python scripts/edit_cli.py \
+--cfg-text 6.305 \
+--cfg-image 3.05 \
+--steps 50 \
 --ckpt "${root}/checkpoints/last.ckpt" \
---edit "Swap the dog with a sks cat" \
---input "test_samples/a_dog.jpg" \
---output "logs/pix2pix/outputs/sks_cat.jpg" \
+--edit "replace the wolf with a sks dog" \
+--input "test_samples/wolves/wolf_2.jpg" \
+--output "logs/pix2pix/wolf_to_golden_dog/wolf_2_to_sks_golden_dog.jpg" \
 --config configs/generate.yaml \
 

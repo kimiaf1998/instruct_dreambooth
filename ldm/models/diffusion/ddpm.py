@@ -1349,8 +1349,8 @@ class LatentDiffusion(DDPM):
                    quantize_denoised=True, inpaint=False, plot_denoise_rows=False, plot_progressive_rows=False,
                    plot_diffusion_rows=False, **kwargs):
         import copy
-        use_ddim = ddim_steps is not None
-        # use_ddim = None
+        # use_ddim = ddim_steps is not None
+        use_ddim = None
 
         print("batch:", batch)
         log = dict()

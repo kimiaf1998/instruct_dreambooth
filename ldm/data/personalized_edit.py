@@ -8,11 +8,11 @@ from torchvision import transforms
 import random
 
 training_templates_smallest = [
-    'replace the dog with a sks {}',
+    'replace the wolf with a sks {}',
 ]
 
 reg_templates_smallest = [
-    'replace the dog with a {}',
+    'replace the wolf with a {}',
 ]
 
 imagenet_templates_small = [
