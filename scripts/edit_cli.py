@@ -90,35 +90,43 @@ def main():
 
     if args.edit == "":
         input_image.save(args.output)
-        return
 
-    with torch.no_grad(), autocast("cuda"), model.ema_scope():
-        cond = {}
-        cond["c_crossattn"] = [model.get_learned_conditioning([args.edit])]
-        input_image = 2 * torch.tensor(np.array(input_image)).float() / 255 - 1
-        input_image = rearrange(input_image, "h w c -> 1 c h w").to(model.device)
-        cond["c_concat"] = [model.encode_first_stage(input_image).mode()]
+    # cfgs = [(8.85, 4.5), (9, 4.5), (7.5, 4), (7.5, 3.85)]
+    # for cfg in cfgs:
+    import builtins
+    while True:
+        # Get two floating-point inputs
+        cfg_text = float(builtins.input("Enter your cfg_text: "))
+        cfg_image = float(builtins.input("Enter your cfg_image: "))
+        with torch.no_grad(), autocast("cuda"), model.ema_scope():
+            cond = {}
+            cond["c_crossattn"] = [model.get_learned_conditioning([args.edit])]
+            _input_image = 2 * torch.tensor(np.array(input_image)).float() / 255 - 1
+            _input_image = rearrange(_input_image, "h w c -> 1 c h w").to(model.device)
+            cond["c_concat"] = [model.encode_first_stage(_input_image).mode()]
 
-        uncond = {}
-        uncond["c_crossattn"] = [null_token]
-        uncond["c_concat"] = [torch.zeros_like(cond["c_concat"][0])]
+            uncond = {}
+            uncond["c_crossattn"] = [null_token]
+            uncond["c_concat"] = [torch.zeros_like(cond["c_concat"][0])]
 
-        sigmas = model_wrap.get_sigmas(args.steps)
+            sigmas = model_wrap.get_sigmas(args.steps)
 
-        extra_args = {
-            "cond": cond,
-            "uncond": uncond,
-            "text_cfg_scale": args.cfg_text,
-            "image_cfg_scale": args.cfg_image,
-        }
-        torch.manual_seed(seed)
-        z = torch.randn_like(cond["c_concat"][0]) * sigmas[0]
-        z = K.sampling.sample_euler_ancestral(model_wrap_cfg, z, sigmas, extra_args=extra_args)
-        x = model.decode_first_stage(z)
-        x = torch.clamp((x + 1.0) / 2.0, min=0.0, max=1.0)
-        x = 255.0 * rearrange(x, "1 c h w -> h w c")
-        edited_image = Image.fromarray(x.type(torch.uint8).cpu().numpy())
-    edited_image.save(args.output)
+            extra_args = {
+                "cond": cond,
+                "uncond": uncond,
+                "text_cfg_scale": cfg_text,
+                "image_cfg_scale": cfg_image,
+            }
+            torch.manual_seed(seed)
+            z = torch.randn_like(cond["c_concat"][0]) * sigmas[0]
+            z = K.sampling.sample_euler_ancestral(model_wrap_cfg, z, sigmas, extra_args=extra_args)
+            x = model.decode_first_stage(z)
+            x = torch.clamp((x + 1.0) / 2.0, min=0.0, max=1.0)
+            x = 255.0 * rearrange(x, "1 c h w -> h w c")
+            edited_image = Image.fromarray(x.type(torch.uint8).cpu().numpy())
+        output_name, output_ext = args.output.split('.')
+        output_path = f"{output_name}_txt_{cfg_text}_img_{cfg_image}.{output_ext}"
+        edited_image.save(output_path)
 
 
 if __name__ == "__main__":
