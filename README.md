@@ -27,7 +27,7 @@ To fine-tune a stable diffusion model, you need to download the latest pre-train
 ## Edit an image
 Run the following command to edit an image with a pre-trained model on a **sks dog**.
 ```
-./generate.sh 
+./edit.sh 
 
 ```
 
