@@ -59,23 +59,8 @@ Dreambooth requires a placeholder word ```[V]```, called identifier, as in the p
 
 Training will be run for 800 steps, and two checkpoints will be saved at ```./logs/<job_name>/checkpoints```, one at 500 steps and one at final step. Typically the one at 500 steps works well enough. We train the model using five V100 GPUs and it takes ~1 hrs.
 
-### Generation
-After training, personalized samples can be obtained by running the command
-
-```
-python scripts/stable_txt2img.py --ddim_eta 0.0 
-                                 --n_samples 8 
-                                 --n_iter 1 
-                                 --scale 10.0 
-                                 --ddim_steps 100  
-                                 --ckpt /path/to/saved/checkpoint/from/training
-                                 --prompt "photo of a sks <class>" 
-```
-
-In particular, ```sks``` is the identifier, which should be replaced by your choice if you happen to change the identifier, and ```<class>``` is the class word ```--class_word``` for training.
-
 ## Results
-Below shows some qualitative results of our model trained on our generated samples. We use the same procedure described before. 
+Below are some qualitative results of our model trained on our generated samples. We use the same procedure described before. 
 
 The used prompt is ```Replace the [subject class] with a sks [object class]```:
 
