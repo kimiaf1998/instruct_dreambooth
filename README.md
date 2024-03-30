@@ -79,9 +79,9 @@ Below shows some qualitative results of our model trained on our generated sampl
 
 The used prompt is ```Replace the [subject class] with a sks [object class]```:
 
-![](img/Instruct2Dream - Results.png)
+<img src="img/Instruct2Dream - Results.png" alt="Instruct2Dream - Pipeline" width="600">
 
 Failure results:
 
-![](img/Instruct2Dream - Results Failure.png)
+<img src="img/Instruct2Dream - Results Failure.png" alt="Instruct2Dream - Pipeline" width="600">
 
