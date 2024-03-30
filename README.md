@@ -1,5 +1,8 @@
 # Instruct2Dream: Few-shot Personalized Image Editing
 
+<img src="img/Instruct2Dream - Pipeline.png" alt="Instruct2Dream - Pipeline" width="300" height="200">
+
+
 ## Introduction
 Large text-to-image models have demonstrated significant effectiveness in generating customized
 images based on textual descriptions. Biding on top of them, image editing models come into play
