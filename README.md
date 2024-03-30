@@ -1,51 +1,60 @@
-# Dreambooth on Stable Diffusion
+# Instruct2Dream: Few-shot Personalized Image Editing
 
-This is an implementtaion of Google's [Dreambooth](https://arxiv.org/abs/2208.12242) with [Stable Diffusion](https://github.com/CompVis/stable-diffusion). The original Dreambooth is based on [Imagen](https://imagen.research.google/) text-to-image model. However, neither the model nor the pre-trained weights of Imagen is available. To enable people to fine-tune a text-to-image model with a few examples, I implemented the idea of Dreambooth on Stable diffusion.
+## Introduction
+Large text-to-image models have demonstrated significant effectiveness in generating customized
+images based on textual descriptions. Biding on top of them, image editing models come into play
+to modify images by following the text instructions. However, these models often struggle to precisely grasp the exact desired changes outlined in textual descriptions, as nuances can be lost in
+translation. In this work, we propose a personalized image editing model that mimics the appearance of the subjects in a given reference image and modifies the input images based on them. By
+utilizing a small set of samples featuring a specific subject, we fine-tune a diffusion image editing
+model to learn a unique identifier associated with that subject, all while preserving its intrinsic
+editing capabilities. Once the subject is learned through the identifier, the identifier is used in the
+image editing pipeline to apply changes to the input image. Since the model leverages class-specific
+prior preservation loss during training, it can perform diverse edits. To acquire training data for
+this task, we leverage an image editing model, specifically InstructPix2Pix, in reverse, facilitating
+the generation of suitable training examples.
 
-This code repository is based on that of [Textual Inversion](https://github.com/rinongal/textual_inversion). Note that Textual Inversion only optimizes word ebedding, while dreambooth fine-tunes the whole diffusion model.
+The implementation of Instruct2Dream is based on [DreamBooth Stable Diffusion](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion). This implementation makes minimum changes over the codebase of DreamBoth, meaning that some components might never be used.
 
-The implementation makes minimum changes over the official codebase of Textual Inversion. In fact, due to lazyness, some components in Textual Inversion, such as the embedding manager, are not deleted, although they will never be used here.
-## Update
-**9/20/2022**: I just found a way to reduce the GPU memory a bit. Remember that this code is based on Textual Inversion, and TI's code base has [this line](https://github.com/rinongal/textual_inversion/blob/main/ldm/modules/diffusionmodules/util.py#L112), which disable gradient checkpointing in a hard-code way. This is because in TI, the Unet is not optimized. However, in Dreambooth we optimize the Unet, so we can turn on the gradient checkpoint pointing trick, as in the original SD repo [here](https://github.com/CompVis/stable-diffusion/blob/main/ldm/modules/diffusionmodules/util.py#L112). The gradient checkpoint is default to be True in [config](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion/blob/main/configs/stable-diffusion/v1-finetune_unfrozen.yaml#L47). I have updated the codes.
-## Usage
 
-### Preparation
-First set-up the ```ldm``` enviroment following the instruction from textual inversion repo, or the original Stable Diffusion repo.
-
-To fine-tune a stable diffusion model, you need to obtain the pre-trained stable diffusion models following their [instructions](https://github.com/CompVis/stable-diffusion#stable-diffusion-v1). Weights can be downloaded on [HuggingFace](https://huggingface.co/CompVis). You can decide which version of checkpoint to use, but I use ```sd-v1-4-full-ema.ckpt```.
-
-We also need to create a set of images for regularization, as the fine-tuning algorithm of Dreambooth requires that. Details of the algorithm can be found in the paper. Note that in the original paper, the regularization images seem to be generated on-the-fly. However, here I generated a set of regularization images before the training. The text prompt for generating regularization images can be ```photo of a <class>```, where ```<class>``` is a word that describes the class of your object, such as ```dog```. The command is
-
+## Preparation
+First set up the ```db``` environment:
 ```
-python scripts/stable_txt2img.py --ddim_eta 0.0 --n_samples 8 --n_iter 1 --scale 10.0 --ddim_steps 50  --ckpt /path/to/original/stable-diffusion/sd-v1-4-full-ema.ckpt --prompt "a photo of a <class>" 
-```
-
-I generate 8 images for regularization, but more regularization images may lead to stronger regularization and better editability. After that, save the generated images (separately, one image per ```.png``` file) at ```/root/to/regularization/images```.
-
-**Updates on 9/9**
-We should definitely use more images for regularization. Please try 100 or 200, to better align with the original paper. To acomodate this, I shorten the "repeat" of reg dataset in the [config file](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion/blob/main/configs/stable-diffusion/v1-finetune_unfrozen.yaml#L96).
-
-For some cases, if the generated regularization images are highly unrealistic (happens when you want to generate "man" or "woman"), you can find a diverse set of images (of man/woman) online, and use them as regularization images.
-
-### Training
-Training can be done by running the following command
-
-```
-python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml 
-                -t 
-                --actual_resume /path/to/original/stable-diffusion/sd-v1-4-full-ema.ckpt  
-                -n <job name> 
-                --gpus 0, 
-                --data_root /root/to/training/images 
-                --reg_data_root /root/to/regularization/images 
-                --class_word <xxx>
+conda env create -f environment.yaml
 ```
 
-Detailed configuration can be found in ```configs/stable-diffusion/v1-finetune_unfrozen.yaml```. In particular, the default learning rate is ```1.0e-6``` as I found the ```1.0e-5``` in the Dreambooth paper leads to poor editability. The parameter ```reg_weight``` corresponds to the weight of regularization in the Dreambooth paper, and the default is set to ```1.0```.
+To fine-tune a stable diffusion model, you need to download the latest pre-trained checkpoint of the stable diffusion image editing model from [instructpix2pix](http://instruct-pix2pix.eecs.berkeley.edu/instruct-pix2pix-00-22000.ckpt).
 
-Dreambooth requires a placeholder word ```[V]```, called identifier, as in the paper. This identifier needs to be a relatively rare tokens in the vocabulary. The original paper approaches this by using a rare word in T5-XXL tokenizer. For simplicity, here I just use a random word ```sks``` and hard coded it.. If you want to change that, simply make a change in [this file](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion/blob/main/ldm/data/personalized.py#L10).
+## Edit an image
+Run the following command to edit an image with a pre-trained model on a **sks dog**.
+```
+./generate.sh 
 
-Training will be run for 800 steps, and two checkpoints will be saved at ```./logs/<job_name>/checkpoints```, one at 500 steps and one at final step. Typically the one at 500 steps works well enough. I train the model use two A6000 GPUs and it takes ~15 mins.
+```
+
+## Generate dataset
+We need to create a set of images for training and regularization beforehand, as the fine-tuning algorithm of Dreambooth requires that. Each sample is a pair of input/edited images that are passed to the model along with the associated editing text instructions. We use InstructPix2Pix in reverse to generate our data. More information about how we generated these samples can be found in the paper. The text prompt we used to generate images is ```Replace the <class of the identifier/any class> with a <another class> ``` for training and regularization set respectively, where ```<class of the identifier>``` is a word that describes the class of your identifier subject, such as ```dog``` and ```another class``` is a random class that you want to replace your subject with. Run the following bash to generate your dataset. To generate different sets, update the script accordingly.
+
+```
+./generate_dataset.sh
+```
+
+We generate 15 images for regularization, but more regularization images may lead to stronger regularization and better editability. 
+
+**Notice**
+We should use more images for regularization. Please try 100 or 200, to better align with the original paper. To accommodate this, we follow the DreamBooth repo and shorten the "repeat" of reg dataset in the [config file](https://github.com/kimiaf1998/instruct_dreambooth/blob/pix2pix/configs/stable-diffusion/v1-finetune_unfrozen.yaml#L96).
+
+## Training
+Training can be done by running the following bash script
+
+```
+./train.sh
+```
+
+Detailed configuration can be found in ```configs/stable-diffusion/v1-finetune_unfrozen.yaml```. In particular, the default learning rate is ```1.0e-6```. The parameter ```reg_weight``` corresponds to the weight of regularization in the Dreambooth paper, and the default is set to ```1.0```.
+
+Dreambooth requires a placeholder word ```[V]```, called identifier, as in the paper. This identifier needs to be a relatively rare tokens in the vocabulary. The original paper approaches this by using a rare word in T5-XXL tokenizer. For simplicity, here we just use a random word ```sks```, and hard coded it. If you want to change that, simply make a change in [this file](https://github.com/kimiaf1998/instruct_dreambooth/blob/pix2pix/ldm/data/personalized_edit.py#L10).
+
+Training will be run for 800 steps, and two checkpoints will be saved at ```./logs/<job_name>/checkpoints```, one at 500 steps and one at final step. Typically the one at 500 steps works well enough. We train the model using five V100 GPUs and it takes ~1 hrs.
 
 ### Generation
 After training, personalized samples can be obtained by running the command
