@@ -1,6 +1,8 @@
 # Instruct2Dream: Few-shot Personalized Image Editing
 
-<img src="img/Instruct2Dream - Pipeline.png" alt="Instruct2Dream - Pipeline" width="300" height="200">
+<div style="text-align:center;">
+    <img src="img/Instruct2Dream - Pipeline.png" alt="Instruct2Dream - Pipeline" width="600" height="300">
+</div>
 
 
 ## Introduction
