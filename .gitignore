@@ -2,3 +2,5 @@ logs/
 outputs/
 *.ckpt
 *.pyc
+ldm_environment.txt
+latent_diffusion.egg-info/
